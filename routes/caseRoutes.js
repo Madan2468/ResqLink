@@ -8,7 +8,8 @@ const {
 } = require('../controllers/caseController');
 
 const protect = require('../middleware/authMiddleware');
-const allowRoles = require('../middleware/roleMiddleware');
+const allowRoles = require('../middleware/roleMiddleware'); // ✅ no () here
+
 const upload = require('../middleware/upload');
 
 router.post('/', protect, upload.single('photo'), reportCase);
