@@ -39,6 +39,7 @@ app.use('/api/cases', require('./routes/caseRoutes'));
 app.use('/api/alerts', require('./routes/alertRoutes'));
 app.use('/api/test-cloudinary', require('./routes/testCloudinary'));
 
+
 // Real-time Socket.IO connection
 io.on('connection', socket => {
   console.log('🟢 New client connected');
