@@ -5,7 +5,7 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 
-// Load environment variables
+
 dotenv.config();
 
 // Connect to MongoDB
