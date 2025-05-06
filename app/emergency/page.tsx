@@ -46,27 +46,21 @@ export default function EmergencyPage() {
       }
 
       // Create emergency case (this will always succeed with our updated function)
-      const caseData = {
+      const caseResponse = await createCase({
         type: emergencyType,
         location,
         description,
         images: imageUrl ? [imageUrl] : undefined,
-      }
-
-      console.log("Submitting case data:", caseData)
-      const caseResponse = await createCase(caseData)
+      })
 
       console.log("Case creation response:", caseResponse)
 
       // Also create an alert for immediate attention (this will always succeed with our updated function)
-      const alertData = {
+      const alertResponse = await createAlert({
         type: emergencyType,
         location,
         description,
-      }
-
-      console.log("Submitting alert data:", alertData)
-      const alertResponse = await createAlert(alertData)
+      })
 
       console.log("Alert creation response:", alertResponse)
 

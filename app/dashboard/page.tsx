@@ -28,83 +28,28 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [casesError, setCasesError] = useState<string | null>(null)
-  const [backendAvailable, setBackendAvailable] = useState(false) // Default to false
+  const [backendAvailable, setBackendAvailable] = useState(true)
   const [emergencyRequests, setEmergencyRequests] = useState<EmergencyRequest[]>([])
   const [user, setUser] = useState<any>(null)
-  const [isOfflineMode, setIsOfflineMode] = useState(true) // Default to true
+  const [isOfflineMode, setIsOfflineMode] = useState(false)
 
   // Check backend status
   useEffect(() => {
     const checkStatus = async () => {
-      try {
-        const isAvailable = await checkBackendStatus()
-        setBackendAvailable(isAvailable)
+      const isAvailable = await checkBackendStatus()
+      setBackendAvailable(isAvailable)
 
-        if (!isAvailable) {
-          console.log("Backend is not available, using offline mode")
-          setIsOfflineMode(true)
-          setError("Backend server is currently unavailable. Using demo mode.")
-
-          // Set demo user data
-          setUser({
-            _id: "offline-user",
-            name: "Demo User",
-            email: "user@example.com",
-            phone: "555-123-4567",
-          })
-
-          // Set demo emergency requests
-          setEmergencyRequests([
-            {
-              id: "sample1",
-              type: "medical",
-              status: "pending",
-              location: "123 Main St, Anytown, USA",
-              description: "Medical emergency requiring immediate attention",
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            {
-              id: "sample2",
-              type: "fire",
-              status: "in-progress",
-              location: "456 Oak Ave, Somewhere, USA",
-              description: "Small fire reported in kitchen area",
-              createdAt: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-              updatedAt: new Date(Date.now() - 1800000).toISOString(), // 30 minutes ago
-            },
-            {
-              id: "sample3",
-              type: "police",
-              status: "completed",
-              location: "789 Pine St, Elsewhere, USA",
-              description: "Suspicious activity reported in neighborhood",
-              createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-              updatedAt: new Date(Date.now() - 43200000).toISOString(), // 12 hours ago
-            },
-          ])
-
-          setLoading(false)
-          return
-        }
-
-        setIsOfflineMode(false)
-      } catch (error) {
-        console.error("Error checking backend status:", error)
+      if (!isAvailable) {
+        setError("Backend server is currently unavailable. Using offline mode.")
         setIsOfflineMode(true)
-        setError("Error checking backend status. Using demo mode.")
       }
     }
 
     checkStatus()
   }, [])
 
-  // Only fetch data if we're not in offline mode
   useEffect(() => {
     const fetchData = async () => {
-      // If we're in offline mode, data is already set
-      if (isOfflineMode) return
-
       try {
         setLoading(true)
         setError(null)
@@ -131,16 +76,15 @@ export default function DashboardPage() {
         } catch (userError) {
           console.error("Error fetching user data:", userError)
 
-          // If we can't get user data, switch to offline mode
-          setIsOfflineMode(true)
-          setUser({
-            _id: "offline-user",
-            name: "Demo User",
-            email: "user@example.com",
-            phone: "555-123-4567",
-          })
-
-          if (
+          // If we're in offline mode, create a mock user
+          if (!backendAvailable || isOfflineMode) {
+            setUser({
+              _id: "offline-user",
+              name: "Offline User",
+              email: "user@example.com",
+              phone: "555-123-4567",
+            })
+          } else if (
             userError instanceof Error &&
             (userError.message.includes("authentication") || userError.message.includes("token"))
           ) {
@@ -153,80 +97,39 @@ export default function DashboardPage() {
             router.push("/auth/login")
             return
           } else {
-            setError("Could not fetch user data. Using demo mode.")
+            throw userError
           }
         }
 
-        // Fetch user cases
-        try {
-          const casesData = await getUserCases()
-          console.log("Cases data:", casesData)
+        // Fetch user cases - this now returns sample data if there's an error
+        const casesData = await getUserCases()
+        console.log("Cases data:", casesData)
 
-          if (casesData.length === 0) {
-            setCasesError(
-              "No emergency cases found. You may not have any cases yet, or there might be a connection issue.",
-            )
-          }
+        if (casesData.length === 0 && !isOfflineMode) {
+          setCasesError(
+            "No emergency cases found. You may not have any cases yet, or there might be a connection issue.",
+          )
+        }
 
-          // Map the cases to our expected format
-          const formattedCases = casesData.map((caseItem: any) => ({
-            id: caseItem._id,
-            type: caseItem.type || "general",
-            status: caseItem.status || "pending",
-            location: caseItem.location || "Unknown location",
-            description: caseItem.description || "No description provided",
-            createdAt: caseItem.createdAt || new Date().toISOString(),
-            updatedAt: caseItem.updatedAt || new Date().toISOString(),
-          }))
+        // Map the cases to our expected format
+        const formattedCases = casesData.map((caseItem: any) => ({
+          id: caseItem._id,
+          type: caseItem.type || "general",
+          status: caseItem.status || "pending",
+          location: caseItem.location || "Unknown location",
+          description: caseItem.description || "No description provided",
+          createdAt: caseItem.createdAt || new Date().toISOString(),
+          updatedAt: caseItem.updatedAt || new Date().toISOString(),
+        }))
 
-          setEmergencyRequests(formattedCases)
+        setEmergencyRequests(formattedCases)
 
-          // If we got sample data, indicate we're in offline mode
-          if (
-            casesData.some(
-              (c: any) => c._id?.toString().startsWith("sample") || c._id?.toString().startsWith("offline"),
-            )
-          ) {
-            setIsOfflineMode(true)
-            if (!error) {
-              setError("Using sample data due to backend connectivity issues.")
-            }
-          }
-        } catch (casesError) {
-          console.error("Error fetching cases:", casesError)
+        // If we got sample data, indicate we're in offline mode
+        if (casesData.some((c: any) => c._id.startsWith("sample"))) {
           setIsOfflineMode(true)
-          setError("Could not fetch cases. Using demo mode.")
-
-          // Set demo emergency requests
-          setEmergencyRequests([
-            {
-              id: "sample1",
-              type: "medical",
-              status: "pending",
-              location: "123 Main St, Anytown, USA",
-              description: "Medical emergency requiring immediate attention",
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            {
-              id: "sample2",
-              type: "fire",
-              status: "in-progress",
-              location: "456 Oak Ave, Somewhere, USA",
-              description: "Small fire reported in kitchen area",
-              createdAt: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-              updatedAt: new Date(Date.now() - 1800000).toISOString(), // 30 minutes ago
-            },
-            {
-              id: "sample3",
-              type: "police",
-              status: "completed",
-              location: "789 Pine St, Elsewhere, USA",
-              description: "Suspicious activity reported in neighborhood",
-              createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-              updatedAt: new Date(Date.now() - 43200000).toISOString(), // 12 hours ago
-            },
-          ])
+          if (!error) {
+            setError("Using sample data due to backend connectivity issues.")
+          }
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error)
@@ -235,7 +138,7 @@ export default function DashboardPage() {
 
         toast({
           title: "Error",
-          description: "Failed to load dashboard data. Using demo mode.",
+          description: "Failed to load dashboard data. Using offline mode.",
           variant: "destructive",
         })
       } finally {
@@ -244,7 +147,7 @@ export default function DashboardPage() {
     }
 
     fetchData()
-  }, [toast, router, isOfflineMode])
+  }, [toast, router, backendAvailable])
 
   const handleLogout = async () => {
     try {
@@ -314,7 +217,7 @@ export default function DashboardPage() {
               {isOfflineMode && (
                 <div className="flex items-center text-red-500 text-sm mr-2">
                   <WifiOff className="h-4 w-4 mr-1" />
-                  Demo Mode
+                  Offline Mode
                 </div>
               )}
               <Button variant="ghost" onClick={handleLogout} className="text-sm font-medium">
@@ -339,7 +242,7 @@ export default function DashboardPage() {
                 <CardContent className="p-4 flex items-start gap-3">
                   <WifiOff className="h-5 w-5 text-yellow-600 mt-0.5" />
                   <div>
-                    <h3 className="font-medium text-yellow-900">Demo Mode Active</h3>
+                    <h3 className="font-medium text-yellow-900">Offline Mode Active</h3>
                     <p className="text-sm text-yellow-700">
                       You're viewing sample data because we can't connect to the backend server. Some features may be
                       limited.
